@@ -1,0 +1,67 @@
+mkdir busblog
+mkdir bsub_submit
+mkdir snpeff/01.snpeff
+mkdir snpeff/02.snpeff
+mkdir snpeff/01.annotated
+mkdir snpeff/02.annotated
+mkdir snpeff/03.annotated
+mkdir snpeff/04.annotated
+mkdir snpeff/05.annotated
+mkdir snpeff/06.annotated
+
+foreach sample ("`cat samples.list`")
+foreach chr ("`cat chrs.list`")
+
+#echo  "bsub_submit/snpeff.${sample}_${chr}.lsf"
+
+
+cat <<EOF > bsub_submit/snpeff.${sample}_${chr}.lsf
+
+#BSUB -J ${sample}_$chr
+#BSUB -W 2:00
+#BSUB -o /rsrch3/scratch/lym_myl_rsch/qcai1/MCLdata/snakemake-gatk-SNV-CNV-byC/busblog/snpeff.${sample}_${chr}.o
+#BSUB -e /rsrch3/scratch/lym_myl_rsch/qcai1/MCLdata/snakemake-gatk-SNV-CNV-byC/busblog/snpeff.${sample}_${chr}.err
+#BSUB -cwd /rsrch3/scratch/lym_myl_rsch/qcai1/MCLdata/snakemake-gatk-SNV-CNV-byC/
+#BSUB -q short
+#BSUB -u qcai1@mdanderson.org
+#BSUB -n 1
+#BSUB -M 10
+#BSUB -R rusage[mem=40]
+
+
+cd /rsrch3/scratch/lym_myl_rsch/qcai1/MCLdata/snakemake-gatk-SNV-CNV-byC/
+module load python/3.7.3-anaconda
+source activate snpeff
+
+      snpEff -c snpeff/seadragon.snpEff.config -noStats \
+       -csvStats snpeff/02.snpeff/${sample}_${chr}_chr1_ann_9.csv \
+           -Xmx6g hg38 snpeff/02.annotated/02.passed.${sample}_${chr}_9_somatic_oncefiltered.ann.vcf \
+           > snpeff/03.annotated/03.passed.${sample}_${chr}_9_somatic_oncefiltered.ann.vcf
+
+#      grep -v '^#' snpeff/03.annotated/03.passed.${sample}_${chr}_9_somatic_oncefiltered.ann.vcf  | awk -F" " '{print $1 " "  $2 " " $4 " " $5}' \
+#      > snpeff/04.annotated/04.passed.${sample}_${chr}_9.table
+
+#      grep -v '^#' snpeff/03.annotated/03.passed.${sample}_${chr}_9_somatic_oncefiltered.ann.vcf  | awk -F"ANN=" '{print $2 " " }' |  awk -F"|"   '{print $4 " " $10 " " $11 " "}' \
+#      > snpeff/04.annotated/04.passed.${sample}_${chr}_9.gene
+
+#      paste  snpeff/04.annotated/04.passed.${sample}_${chr}_9.table   snpeff/04.annotated/04.passed.${sample}_${chr}_9.gene  > snpeff/05.annotated/05.${sample}_${chr}.txt
+
+EOF
+
+
+
+
+if ( -f snpeff/03.annotated/03.passed.${sample}_${chr}_9_somatic_oncefiltered.ann.vcf) then
+        echo    "snpeff/03.annotated/03.passed.${sample}_${chr}_9_somatic_oncefiltered.ann.vcf exit"
+    if (! -s snpeff/03.annotated/03.passed.${sample}_${chr}_9_somatic_oncefiltered.ann.vcf) then
+        echo    "But snpeff/03.annotated/03.passed.${sample}_${chr}_9_somatic_oncefiltered.ann.vcf empty"
+        bsub < bsub_submit/snpeff.${sample}_${chr}.lsf
+    endif 
+else
+        bsub < bsub_submit/snpeff.${sample}_${chr}.lsf
+endif
+
+end
+end
+
+

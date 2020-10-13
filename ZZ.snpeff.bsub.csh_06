@@ -1,0 +1,49 @@
+mkdir busblog
+mkdir bsub_submit
+mkdir snpeff/01.snpeff
+mkdir snpeff/02.snpeff
+mkdir snpeff/01.annotated
+mkdir snpeff/02.annotated
+mkdir snpeff/03.annotated
+mkdir snpeff/04.annotated
+mkdir snpeff/05.annotated
+mkdir snpeff/06.annotated
+mkdir snpeff/07.tmp
+mkdir snpeff/07.annotated
+mkdir snpeff/08.annotated
+mkdir snpeff/09.annotated
+
+foreach sample ("`cat samples.list_full`")
+echo "working on $sample"
+cat  snpeff/cmc_head.txt  snpeff/07.annotated/final_${sample}.txt >  snpeff/07.annotated/head.final_${sample}.txt
+
+cat <<EOF > snpeff/07.tmp/script.${sample}.R
+
+t1 <- read.table("snpeff/07.annotated/head.final_${sample}.txt", sep="\t", head=T)
+t1 <- t1[order(t1\$COSMIC_SAMPLE_MUTATED, decreasing=T),]
+t <- t1[,c(1:2,6:8,23,3:5,9:22,24:57)]
+t\$sample <- "${sample}"
+write.table(t, file= "snpeff/08.annotated/${sample}", , sep="\t")
+EOF
+
+Rscript snpeff/07.tmp/script.$sample.R
+end
+
+
+cat <<EOFA > snpeff/07.tmp/script.final.R
+setwd("snpeff/08.annotated")
+dataframes <- list.files() 
+library(plyr) 
+list_dataframes <- llply(dataframes, read.table, header = T, sep = "\t") 
+dimensions <- ldply(list_dataframes, dim) 
+selection <- llply(list_dataframes, subset, select = c(1:6,58)) 
+
+final.frame <- merge(selection[[1]],selection[[2]], by=c("GENE_NAME", "ACCESSION_NUMBER","LEGACY_MUTATION_ID","Mutation.CDS", "Mutation.AA", "COSMIC_SAMPLE_MUTATED"), all=T ) 
+for (i in 3:length(dataframes)) { 
+       final.frame <- merge(final.frame ,selection[[i]], by=c("GENE_NAME", "ACCESSION_NUMBER","LEGACY_MUTATION_ID","Mutation.CDS", "Mutation.AA", "COSMIC_SAMPLE_MUTATED"), all=T )
+}
+colnames(final.frame)[7:ncol(final.frame)] <- dataframes 
+write.table(final.frame, file = "../09.annotated/final.frame.txt", sep= "\t", quote=F, na = ".", row.names =F)
+EOFA
+
+Rscript snpeff/07.tmp/script.final.R

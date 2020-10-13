@@ -1,0 +1,62 @@
+mkdir busblog
+mkdir bsub_submit
+mkdir snpeff/01.snpeff
+mkdir snpeff/02.snpeff
+mkdir snpeff/01.annotated
+mkdir snpeff/02.annotated
+mkdir snpeff/03.annotated
+mkdir snpeff/04.annotated
+mkdir snpeff/05.annotated
+mkdir snpeff/06.annotated
+mkdir snpeff/07.tmp
+mkdir snpeff/07.annotated
+
+foreach sample ("`cat samples.list`")
+echo "working on $sample"
+
+
+cat <<EOF > bsub_submit/5.snpeff.${sample}.lsf
+
+#BSUB -J ${sample}
+#BSUB -W 2:00
+#BSUB -o /rsrch3/scratch/lym_myl_rsch/qcai1/MCLdata/snakemake-gatk-SNV-CNV-byC/busblog/snpeff.${sample}.o
+#BSUB -e /rsrch3/scratch/lym_myl_rsch/qcai1/MCLdata/snakemake-gatk-SNV-CNV-byC/busblog/snpeff.${sample}.err
+#BSUB -cwd /rsrch3/scratch/lym_myl_rsch/qcai1/MCLdata/snakemake-gatk-SNV-CNV-byC/
+#BSUB -q short
+#BSUB -u qcai1@mdanderson.org
+#BSUB -n 1
+#BSUB -M 10
+#BSUB -R rusage[mem=40]
+
+bash bsub_submit/5.snpeff.${sample}.readline.bash
+
+EOF
+
+cat <<EOFA > bsub_submit/5.snpeff.${sample}.readline.bash
+while IFS= read -r  line
+do
+echo "\$line" | awk -F" " '{print \$5}' > snpeff/07.tmp/tmp_gene.${sample}
+echo "\$line" | awk -F" " '{print \$6}' > snpeff/07.tmp/tmp_loc.${sample}
+
+grep -f snpeff/07.tmp/tmp_gene.${sample}  snpeff/cmc_export.v92.tsv.1 > snpeff/07.tmp/tmp.${sample}
+grep -f snpeff/07.tmp/tmp_loc.${sample}   snpeff/07.tmp/tmp.${sample}  >> snpeff/07.annotated/final_${sample}.txt
+
+done < snpeff/06.annotated/06.${sample}.txt
+EOFA
+
+
+if ( -f snpeff/07.annotated/final_${sample}.txt) then
+       echo "snpeff/07.annotated/final_${sample}.txt  exit"
+      if (! -s snpeff/07.annotated/final_${sample}.txt) then
+          echo "snpeff/07.annotated/final_${sample}.txt  empty"
+          bsub < bsub_submit/5.snpeff.${sample}.lsf
+      endif
+else
+        bsub < bsub_submit/5.snpeff.${sample}.lsf
+endif
+
+end
+
+
+
+

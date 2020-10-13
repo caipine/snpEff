@@ -1,0 +1,16 @@
+foreach sample ("`cat samples.list`")
+foreach chr ("`cat chrs.list`")
+
+      grep -v '^#' snpeff/03.annotated/03.passed.${sample}_${chr}_9_somatic_oncefiltered.ann.vcf  | awk -F" " '{print $1 " "  $2 " " $4 " " $5}' \
+      > snpeff/04.annotated/04.passed.${sample}_${chr}_9.table
+
+      grep -v '^#' snpeff/03.annotated/03.passed.${sample}_${chr}_9_somatic_oncefiltered.ann.vcf  | awk -F"ANN=" '{print $2 " " }' |  awk -F"|"   '{print $4 " " $10 " " $11 " "}' \
+      > snpeff/04.annotated/04.passed.${sample}_${chr}_9.gene
+
+      paste  snpeff/04.annotated/04.passed.${sample}_${chr}_9.table   snpeff/04.annotated/04.passed.${sample}_${chr}_9.gene  > snpeff/05.annotated/05.${sample}_${chr}.txt
+end
+
+
+
+cat snpeff/05.annotated/05.${sample}_*.txt > snpeff/06.annotated/06.${sample}.txt
+end
